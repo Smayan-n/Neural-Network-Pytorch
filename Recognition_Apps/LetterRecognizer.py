@@ -2,13 +2,15 @@ import numpy as np
 import sys, math, cv2
 
 sys.path.append(
-    "C:\\Smayan's Files\\Programming\\Python\\AI\\Neural Networks\\Neural Network Pytorch"
+    "C:\\Smayan's Files\\Programming\\Python\\AI\\Neural Networks\\Neural Networks Pytorch"
 )
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from Utility import interpolate, lerp
 from HandWrittenRecognizerNetwork import HandWrittenRecognizerNetwork
+from DigitNet import Net
+from LetterNet import LetterNet
 
 
 class MainWindow(QWidget):
@@ -20,9 +22,11 @@ class MainWindow(QWidget):
         self.setStyleSheet("background-color: rgb(38, 36, 48)")
 
         # Load in the Neural Network
-        # model.pt: 87.8% - model is best yet
+        # letter_recognizer_model.pt: 87.8% - model is best yet
         self.model = HandWrittenRecognizerNetwork(784, 128, 27)
         self.model.load("./trained models/letter_recognizer_model.pt")
+        # self.model = LetterNet()
+        # self.model.load("cnn_model_letters_linear.pt")
 
         # inputs
         self.mouse_clicked = False
@@ -203,8 +207,8 @@ class MainWindow(QWidget):
                 image[row][col] = pixel_intensity
 
         # dilate image to make letters thicker
-        dilated = cv2.dilate(image, np.ones((3, 3), np.uint8), iterations=1)
-        normalized = (dilated / 255 - 0.5) / 0.5
+        # dilated = cv2.dilate(image, np.ones((2, 2), np.uint8), iterations=1)
+        normalized = (image / 255 - 0.1307) / 0.3081
         return normalized
 
     def mousePressEvent(self, event):

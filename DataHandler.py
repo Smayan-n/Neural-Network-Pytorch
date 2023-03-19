@@ -54,10 +54,10 @@ class DataHandler:
                     transforms.ToTensor(),
                     transforms.Normalize((0.5,), (0.5,)),
                     transforms.RandomAffine(
-                        degrees=(-40, 40),
-                        translate=(0.3, 0.3),
-                        scale=(0.5, 1.5),
-                        shear=(-30, 30, -30, 30),
+                        degrees=(-30, 30),
+                        translate=(0.32, 0.32),
+                        scale=(0.4, 1),
+                        shear=(-15, 15, -15, 15),
                     ),
                 ]
             )
@@ -65,6 +65,8 @@ class DataHandler:
         # load EMNIST dataset with only letters
         # split="letters" has 26 classes (upper and lowercase combined into one)
         # split="balanced" has 47 classes (upper and lowercase both)
+        kwargs = {"num_workers": 1, "pin_memory": True}
+        # kwargs = {}
         if not only_test:
             dataset_train = datasets.EMNIST(
                 root="./datasets",
@@ -73,13 +75,13 @@ class DataHandler:
                 download=True,
                 transform=transform,
             )
-            # rotate and flip images
 
             dataset_train.data = torch.flip(
                 DataHandler.rotate_images(dataset_train.data, -90), [2]
             )
+
             trainset = DataLoader(
-                dataset_train, batch_size=batch_size, shuffle=True, drop_last=True
+                dataset_train, batch_size=batch_size, shuffle=True, **kwargs
             )
 
         dataset_test = datasets.EMNIST(
@@ -90,12 +92,14 @@ class DataHandler:
             transform=transform,
         )
         # rotate and flip images
+
         dataset_test.data = torch.flip(
             DataHandler.rotate_images(dataset_test.data, -90), [2]
         )
+
         # create dataloaders
         testset = DataLoader(
-            dataset_test, batch_size=batch_size, shuffle=True, drop_last=True
+            dataset_test, batch_size=batch_size, shuffle=True, **kwargs
         )
 
         if not only_test:
@@ -116,9 +120,9 @@ class DataHandler:
                     transforms.ToTensor(),
                     transforms.Normalize((0.1307,), (0.3081,)),
                     transforms.RandomAffine(
-                        degrees=(-40, 40),
-                        translate=(0.3, 0.3),
-                        scale=(0.5, 1.5),
+                        degrees=(-30, 30),
+                        translate=(0.33, 0.33),
+                        scale=(0.3, 1.1),
                         shear=(-30, 30, -30, 30),
                     ),
                 ]
@@ -130,8 +134,9 @@ class DataHandler:
             download=True,
             transform=transform,
         )
-
-        trainset = DataLoader(training_data, batch_size, shuffle=True, drop_last=True)
+        # kwargs = {"num_workers": 1, "pin_memory": True}
+        kwargs = {}
+        trainset = DataLoader(training_data, batch_size, shuffle=True, **kwargs)
 
         test_data = datasets.MNIST(
             "./datasets",
@@ -139,7 +144,7 @@ class DataHandler:
             download=True,
             transform=transform,
         )
-        testset = DataLoader(test_data, batch_size, shuffle=False, drop_last=True)
+        testset = DataLoader(test_data, batch_size, shuffle=False, **kwargs)
 
         return trainset, testset
 
@@ -260,11 +265,7 @@ class DataHandler:
 
 # draw_image(new_images[3])
 
-# testset = DataHandler.get_hand_drawn_letters(
-#     200,
-#     augment_data=True,
-#     only_test=True,
-# )
+# trainset, testset = DataHandler.get_hand_drawn_digits(200, augment_data=True)
 # x, y = next(iter(testset))
 # grid = torchvision.utils.make_grid(x, pad_value=1)
 # torchvision.utils.save_image(grid, "augmented.png")

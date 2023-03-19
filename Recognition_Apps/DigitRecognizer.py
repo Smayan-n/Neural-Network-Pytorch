@@ -3,14 +3,15 @@ import sys, math, cv2
 import torch, pyautogui
 
 sys.path.append(
-    "C:\\Smayan's Files\\Programming\\Python\\AI\\Neural Networks\\Neural Network Pytorch"
+    "C:\\Smayan's Files\\Programming\\Python\\AI\\Neural Networks\\Neural Networks Pytorch"
 )
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from Utility import interpolate, lerp
 from HandWrittenRecognizerNetwork import HandWrittenRecognizerNetwork
-from CNN_Network import CNN_Network
+from DigitNet import Net
+from CNN import CNN
 
 
 class MainWindow(QMainWindow):
@@ -25,8 +26,10 @@ class MainWindow(QMainWindow):
         # digit_recognizer_model.pt: 96.4% accuracy on testset - overfitted model
         # digit_recognizer_model_poor.pt: 93.7% accuracy on testset - not good on my digits - trained w/o transformations
         # digit_recognizer_model_best.pt: 94.9% - best model on my digits
-        self.model = HandWrittenRecognizerNetwork(784, 128, 10)
-        self.model.load("./trained models/digit_recognizer_model_best.pt")
+        # self.model = HandWrittenRecognizerNetwork(784, 128, 10)
+        # self.model.load("./trained models/digit_recognizer_model_best.pt")
+        self.model = CNN()
+        self.model.load("trained models/cnn_digit_model_experiment.pt")
 
         # inputs
         self.mouse_clicked = False
@@ -207,8 +210,8 @@ class MainWindow(QMainWindow):
                 image[row][col] = pixel_intensity
 
         # dilate image to make digits thicker
-        dilated = cv2.dilate(image, np.ones((3, 3), np.uint8), iterations=1)
-        normalized = (dilated / 255 - 0.1307) / 0.3081
+        dilated = cv2.dilate(image, np.ones((2, 2), np.uint8), iterations=1)
+        normalized = (image / 255 - 0.1307) / 0.3081
         return normalized
 
     def mousePressEvent(self, event):

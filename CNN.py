@@ -1,4 +1,4 @@
-import torch as T
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -11,179 +11,123 @@ import time
 
 
 class CNN(nn.Module):
-    def __init__(self, lr, epochs, batch_size, num_classes=10):
+    def __init__(self):
         super(CNN, self).__init__()
-        self.epochs = epochs
-        self.lr = lr
-        self.batch_size = batch_size
-        self.num_classes = num_classes
-        self.loss_history = []
-        self.acc_history = []
-        self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
-        self.conv1 = nn.Conv2d(1, 32, 3)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 32, 3)
-        self.bn2 = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 32, 3)
-        self.bn3 = nn.BatchNorm2d(32)
-        self.maxpool1 = nn.MaxPool2d(2)
-        self.conv4 = nn.Conv2d(32, 64, 3)
-        self.bn4 = nn.BatchNorm2d(64)
-        self.conv5 = nn.Conv2d(64, 64, 3)
-        self.bn5 = nn.BatchNorm2d(64)
-        self.conv6 = nn.Conv2d(64, 64, 3)
-        self.bn6 = nn.BatchNorm2d(64)
-        self.maxpool2 = nn.MaxPool2d(2)
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.dropout1 = nn.Dropout2d(0.25)
+        self.dropout2 = nn.Dropout2d(0.5)
+        self.fc1 = nn.Linear(9216, 128)
+        self.fc2 = nn.Linear(128, 10)
 
-        input_dims = self.calc_input_dims()
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
+        output = F.log_softmax(x, dim=1)
+        return output
 
-        self.fc1 = nn.Linear(input_dims, self.num_classes)
+    def getOutput(self, input):
 
-        self.optimizer = optim.Adam(self.parameters(), lr=self.lr)
+        input = torch.from_numpy(input).float()
+        input = input.view(1, 1, 28, 28)
 
-        self.loss = nn.CrossEntropyLoss()
-        self.to(self.device)
-        self.get_data()
+        output = self.forward(input)
 
-    def calc_input_dims(self):
-        batch_data = T.zeros((1, 1, 28, 28))
-        batch_data = self.conv1(batch_data)
-        # batch_data = self.bn1(batch_data)
-        batch_data = self.conv2(batch_data)
-        # batch_data = self.bn2(batch_data)
-        batch_data = self.conv3(batch_data)
+        return output
 
-        batch_data = self.maxpool1(batch_data)
-        batch_data = self.conv4(batch_data)
-        batch_data = self.conv5(batch_data)
-        batch_data = self.conv6(batch_data)
-        batch_data = self.maxpool2(batch_data)
+    def getOutputDistribution(self, output):
+        percents = F.softmax(output, dim=1)
+        return percents.detach().numpy()[0]
 
-        return int(np.prod(batch_data.size()))
+    def load(self, path):
+        """loads model from given path"""
+        self.load_state_dict(torch.load(path))
 
-    def forward(self, batch_data):
-        batch_data = T.tensor(batch_data).to(self.device)
+    def save(self, path):
+        """saves model to given path"""
+        torch.save(self.state_dict(), path)
 
-        batch_data = self.conv1(batch_data)
-        batch_data = self.bn1(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.conv2(batch_data)
-        batch_data = self.bn2(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.conv3(batch_data)
-        batch_data = self.bn3(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.maxpool1(batch_data)
-
-        batch_data = self.conv4(batch_data)
-        batch_data = self.bn4(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.conv5(batch_data)
-        batch_data = self.bn5(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.conv6(batch_data)
-        batch_data = self.bn6(batch_data)
-        batch_data = F.relu(batch_data)
-
-        batch_data = self.maxpool2(batch_data)
-
-        batch_data = batch_data.view(batch_data.size()[0], -1)
-
-        classes = self.fc1(batch_data)
-
-        return classes
-
-    def get_data(self):
-
-        (
-            self.train_data_loader,
-            self.test_data_loader,
-        ) = DataHandler.get_hand_drawn_digits(self.batch_size)
-
-    def _train(self):
+    def trainNetwork(self, dataset, device, epochs=3, learn_rate=1):
         self.train()
-        for i in range(self.epochs):
-            ep_loss = 0
-            ep_acc = []
-            start_time = time.time()
-            for j, (input, label) in enumerate(self.train_data_loader):
-                # apply transformation
-                input = input.view(self.batch_size, 28, 28)
-                input = DataHandler.apply_random_transformation(input)
-                input = input.view(self.batch_size, 1, 28, 28)
-                input = input.to(T.float32)
 
-                self.optimizer.zero_grad()
-                label = label.to(self.device)
+        # optimizer to update gradients
+        optimizer = torch.optim.Adadelta(self.parameters(), lr=learn_rate)
 
-                prediction = self.forward(input)
+        # gamma is factor of learn rate decay after [step_size] epochs
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
 
-                loss = self.loss(prediction, label)
-                prediction = F.softmax(prediction, dim=1)
-                classes = T.argmax(prediction, dim=1)
-                wrong = T.where(
-                    classes != label,
-                    T.tensor([1.0]).to(self.device),
-                    T.tensor([0.0]).to(self.device),
-                )
-                acc = 1 - T.sum(wrong) / self.batch_size
+        # training loop
+        losses = []
+        batch_loss = 0
+        correct = 0
+        total = 0
+        start_time = time.time()
+        log_interval = 50
+        for epoch in range(epochs):
+            for batch, (X, y) in enumerate(dataset):
+                # NOTE: X is whole batch of data, y is whole batch of labels
+                X, y = X.to(device), y.to(device)
 
-                ep_acc.append(acc.item())
-                self.acc_history.append(acc.item())
-                ep_loss += loss.item()
+                # clear gradients before each batch
+                optimizer.zero_grad()
+
+                # forward pass
+                output = self(X)
+
+                # calculate loss
+                loss = F.nll_loss(output, y)
+                batch_loss += loss.item()
+
+                # backward pass and adjust weights
                 loss.backward()
-                self.optimizer.step()
-                print(
-                    f"Batch: {j}    Loss: {loss.item():.4f}    Accuracy: {acc.item():.4f}"
-                )
-            print(
-                "Finish epoch ",
-                i,
-                "total loss %.3f" % ep_loss,
-                "accuracy %.3f" % np.mean(ep_acc),
-                f"Time: {(time.time() - start_time):.4f}",
-            )
-            self.loss_history.append(ep_loss)
+                optimizer.step()
 
-    def _test(self):
+                # training accuracy
+                for idx, i in enumerate(output):
+                    if torch.argmax(i) == y[idx]:
+                        correct += 1
+                    total += 1
+
+                # performance metrics
+                if (batch + 1) % log_interval == 0:
+                    print(
+                        f"Epoch: {epoch + 1}    Batch: {batch + 1}/{len(dataset)}    Loss: {(batch_loss/log_interval):.4f}   Train Accuracy: {(correct / total):.4f}   Time: {(time.time() - start_time):.4f}"
+                    )
+                    losses.append(batch_loss / log_interval)
+                    batch_loss = 0
+                    correct = 0
+                    total = 0
+                    start_time = time.time()
+
+            # step scheduler
+            scheduler.step()
+
+        return losses
+
+    def evaluateNetwork(self, dataset, device):
+        """evaluates network performance on given dataset"""
         self.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data in dataset:
+                X, y = data
+                X, y = X.to(device), y.to(device)
 
-        ep_loss = 0
-        ep_acc = []
-        for j, (input, label) in enumerate(self.test_data_loader):
-            label = label.to(self.device)
-            prediction = self.forward(input)
-            loss = self.loss(prediction, label)
-            prediction = F.softmax(prediction, dim=1)
-            classes = T.argmax(prediction, dim=1)
-            wrong = T.where(
-                classes != label,
-                T.tensor([1.0]).to(self.device),
-                T.tensor([0.0]).to(self.device),
-            )
-            acc = 1 - T.sum(wrong) / self.batch_size
+                output = self.forward(X)
+                # print(output)
+                for idx, i in enumerate(output):
+                    # print(torch.argmax(i), y[idx])
+                    if torch.argmax(i) == y[idx]:
+                        correct += 1
+                    total += 1
 
-            ep_acc.append(acc.item())
-
-            ep_loss += loss.item()
-
-        print("total loss %.3f" % ep_loss, "accuracy %.3f" % np.mean(ep_acc))
-
-
-if __name__ == "__main__":
-    network = CNN(lr=0.001, batch_size=128, epochs=5)
-    network._train()
-
-    # save network
-    T.save(network.state_dict(), "cnn_model.pth")
-
-    plt.plot(network.loss_history)
-    plt.show()
-    plt.plot(network.acc_history)
-    plt.show()
-    network._test()
+        return round(correct / total, 3)

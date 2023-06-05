@@ -3,8 +3,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 from torchvision import datasets, transforms
-import scipy, cv2, random
-from scipy import ndimage
+import cv2, random
 
 
 def plot_data(X, y):

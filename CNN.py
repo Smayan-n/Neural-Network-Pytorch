@@ -35,7 +35,6 @@ class CNN(nn.Module):
         return output
 
     def getOutput(self, input):
-
         input = torch.from_numpy(input).float()
         input = input.view(1, 1, 28, 28)
 
@@ -49,7 +48,7 @@ class CNN(nn.Module):
 
     def load(self, path):
         """loads model from given path"""
-        self.load_state_dict(torch.load(path))
+        self.load_state_dict(torch.load(path, map_location=torch.device("cpu")))
 
     def save(self, path):
         """saves model to given path"""

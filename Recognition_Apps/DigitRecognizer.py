@@ -28,8 +28,10 @@ class MainWindow(QMainWindow):
         # digit_recognizer_model_best.pt: 94.9% - best model on my digits
         # self.model = HandWrittenRecognizerNetwork(784, 128, 10)
         # self.model.load("./trained models/digit_recognizer_model_best.pt")
+
+        # CNN model is best
         self.model = CNN()
-        self.model.load("trained models/cnn_digit_model_experiment.pt")
+        self.model.load("./trained models/cnn_digit_model.pt")
 
         # inputs
         self.mouse_clicked = False
